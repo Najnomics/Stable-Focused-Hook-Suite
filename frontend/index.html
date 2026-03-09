@@ -1,0 +1,77 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Stable Suite Console</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&family=IBM+Plex+Mono:wght@400;500&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <div class="bg-glow"></div>
+    <main class="shell">
+      <header class="hero">
+        <p class="eyebrow">Stable-Focused Hook Suite</p>
+        <h1>Stable Suite Console</h1>
+        <p>
+          Deterministic operations for policy, regimes, and sticky-liquidity rewards on Uniswap v4 pools.
+        </p>
+        <button id="connectBtn">Connect Wallet</button>
+        <p id="status">Wallet: disconnected</p>
+      </header>
+
+      <section class="panel">
+        <h2>Contracts</h2>
+        <div class="grid-two">
+          <label>Hook <input id="hookAddress" placeholder="0x..." /></label>
+          <label>Controller <input id="controllerAddress" placeholder="0x..." /></label>
+          <label>Incentives <input id="incentivesAddress" placeholder="0x..." /></label>
+          <label>PoolId <input id="poolId" placeholder="0x...bytes32" /></label>
+        </div>
+        <button id="loadBtn">Load Suite</button>
+      </section>
+
+      <section class="panel">
+        <h2>Regime Readout</h2>
+        <div class="actions">
+          <button id="regimeBtn">Refresh Runtime</button>
+        </div>
+        <pre id="runtimeOut">Runtime not loaded.</pre>
+      </section>
+
+      <section class="panel">
+        <h2>Incentives</h2>
+        <div class="grid-two">
+          <label>Funding Amount (wei) <input id="fundAmount" value="1000000000000000000" /></label>
+          <label>Claim Recipient <input id="claimTo" placeholder="0x..." /></label>
+        </div>
+        <div class="actions">
+          <button id="fundBtn">Fund Program</button>
+          <button id="claimableBtn">Query Claimable</button>
+          <button id="claimBtn">Claim</button>
+        </div>
+        <pre id="incentivesOut">Incentives output.</pre>
+      </section>
+
+      <section class="panel">
+        <h2>Policy Update</h2>
+        <p class="note">
+          Paste a JSON object compatible with `StableTypes.PolicyInput` and run `configurePoolPolicy`.
+        </p>
+        <textarea id="policyJson" rows="12"></textarea>
+        <div class="actions">
+          <button id="policyBtn">Configure Policy</button>
+        </div>
+        <pre id="policyOut">Policy output.</pre>
+      </section>
+    </main>
+
+    <script src="https://cdn.jsdelivr.net/npm/ethers@6.13.2/dist/ethers.umd.min.js"></script>
+    <script type="module" src="./app.js"></script>
+  </body>
+</html>

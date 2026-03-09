@@ -1,0 +1,16 @@
+{
+  "name": "stable-focused-hook-suite",
+  "version": "1.0.0",
+  "private": true,
+  "workspaces": [
+    "frontend"
+  ],
+  "scripts": {
+    "frontend:dev": "python3 -m http.server 4173 --directory frontend",
+    "abi:export": "./scripts/export-abis.sh",
+    "deps:check": "./scripts/bootstrap.sh"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}

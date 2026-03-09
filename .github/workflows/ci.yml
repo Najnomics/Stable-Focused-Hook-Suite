@@ -1,0 +1,47 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+env:
+  FOUNDRY_PROFILE: ci
+
+jobs:
+  build-test:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Install Foundry
+        uses: foundry-rs/foundry-toolchain@v1
+        with:
+          version: stable
+
+      - name: Bootstrap and Pin Dependencies
+        run: ./scripts/bootstrap.sh
+
+      - name: Verify Periphery Pin
+        run: |
+          ACTUAL=$(git -C lib/uniswap-hooks/lib/v4-periphery rev-parse HEAD)
+          EXPECTED=3779387e5d296f39df543d23524b050f89a62917
+          test "$ACTUAL" = "$EXPECTED"
+
+      - name: Build
+        run: forge build --sizes
+
+      - name: Test
+        run: forge test -vvv
+
+      - name: Coverage
+        run: forge coverage
+
+      - name: Export Shared ABIs
+        run: ./scripts/export-abis.sh
+
+      - name: Verify Commit Count
+        run: ./scripts/verify_commits.sh

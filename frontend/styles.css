@@ -1,0 +1,144 @@
+:root {
+  --bg: #071015;
+  --bg-soft: #10202a;
+  --fg: #e8f3f1;
+  --muted: #9cb7b2;
+  --accent: #5ee6b3;
+  --accent-2: #ffb24c;
+  --danger: #ff6a59;
+  --card: rgba(16, 32, 42, 0.92);
+  --border: rgba(148, 182, 174, 0.2);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  font-family: "Space Grotesk", sans-serif;
+  color: var(--fg);
+  background: radial-gradient(circle at 20% 15%, #1f3a49, var(--bg) 45%),
+    linear-gradient(135deg, #04080c 0%, #071015 100%);
+  min-height: 100vh;
+}
+
+.bg-glow {
+  position: fixed;
+  inset: -20vmax;
+  background: radial-gradient(circle, rgba(94, 230, 179, 0.14), transparent 58%);
+  filter: blur(50px);
+  pointer-events: none;
+}
+
+.shell {
+  width: min(1080px, 92vw);
+  margin: 40px auto;
+  display: grid;
+  gap: 16px;
+}
+
+.hero,
+.panel {
+  border: 1px solid var(--border);
+  border-radius: 18px;
+  background: var(--card);
+  backdrop-filter: blur(8px);
+  padding: 20px;
+}
+
+.hero h1 {
+  margin: 4px 0 8px;
+  font-size: clamp(1.8rem, 4vw, 2.8rem);
+}
+
+.eyebrow {
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--accent-2);
+  margin: 0;
+  font-size: 0.78rem;
+}
+
+h2 {
+  margin: 0 0 10px;
+}
+
+.grid-two {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 12px;
+}
+
+label {
+  display: grid;
+  gap: 6px;
+  font-size: 0.92rem;
+  color: var(--muted);
+}
+
+input,
+textarea {
+  width: 100%;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: #0a171e;
+  color: var(--fg);
+  padding: 10px 12px;
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 0.87rem;
+}
+
+textarea {
+  resize: vertical;
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 12px;
+}
+
+button {
+  border: none;
+  border-radius: 999px;
+  background: linear-gradient(120deg, var(--accent), #67ffc0);
+  color: #062f1f;
+  font-weight: 700;
+  padding: 10px 16px;
+  cursor: pointer;
+}
+
+button:hover {
+  filter: brightness(1.05);
+}
+
+pre {
+  margin-top: 12px;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  background: #060c10;
+  color: #c8dbd7;
+  padding: 12px;
+  overflow: auto;
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 0.82rem;
+}
+
+.note {
+  color: var(--muted);
+  margin-top: 0;
+}
+
+@media (max-width: 760px) {
+  .shell {
+    width: 94vw;
+    margin: 24px auto;
+  }
+
+  .hero,
+  .panel {
+    padding: 16px;
+  }
+}
