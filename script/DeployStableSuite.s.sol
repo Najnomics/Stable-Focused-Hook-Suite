@@ -13,8 +13,9 @@ import {PoolId, PoolIdLibrary} from "@uniswap/v4-core/src/types/PoolId.sol";
 import {Currency, CurrencyLibrary} from "@uniswap/v4-core/src/types/Currency.sol";
 import {IHooks} from "@uniswap/v4-core/src/interfaces/IHooks.sol";
 import {LiquidityAmounts} from "@uniswap/v4-core/test/utils/LiquidityAmounts.sol";
-import {IPositionManager} from "@uniswap/v4-periphery/src/interfaces/IPositionManager.sol";
+import {Actions} from "@uniswap/v4-periphery/src/libraries/Actions.sol";
 import {HookMiner} from "@uniswap/v4-periphery/src/utils/HookMiner.sol";
+import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
 import {MockStablecoin} from "../src/mocks/MockStablecoin.sol";
 import {MockRewardToken} from "../src/mocks/MockRewardToken.sol";
@@ -24,12 +25,9 @@ import {RewardsVault} from "../src/incentives/RewardsVault.sol";
 import {StickyLiquidityIncentives} from "../src/incentives/StickyLiquidityIncentives.sol";
 import {StableTypes} from "../src/libraries/StableTypes.sol";
 
-import {EasyPosm} from "../test/utils/libraries/EasyPosm.sol";
-
 contract DeployStableSuiteScript is Script, Deployers {
     using PoolIdLibrary for PoolKey;
     using CurrencyLibrary for Currency;
-    using EasyPosm for IPositionManager;
 
     MockStablecoin public usdc;
     MockStablecoin public dai;
@@ -55,9 +53,13 @@ contract DeployStableSuiteScript is Script, Deployers {
             dai = new MockStablecoin("Mock DAI", "mDAI", 18);
             rewardToken = new MockRewardToken();
 
-            usdc.mint(msg.sender, 10_000_000e6);
-            dai.mint(msg.sender, 10_000_000e18);
-            rewardToken.mint(msg.sender, 10_000_000e18);
+            uint256 usdcMint = vm.envOr("MOCK_USDC_MINT", uint256(1_000_000_000_000_000e6));
+            uint256 daiMint = vm.envOr("MOCK_DAI_MINT", uint256(1_000_000_000_000_000e18));
+            uint256 rewardMint = vm.envOr("MOCK_REWARD_MINT", uint256(1_000_000_000_000_000e18));
+
+            usdc.mint(msg.sender, usdcMint);
+            dai.mint(msg.sender, daiMint);
+            rewardToken.mint(msg.sender, rewardMint);
         } else {
             usdc = MockStablecoin(vm.envAddress("TOKEN0"));
             dai = MockStablecoin(vm.envAddress("TOKEN1"));
@@ -100,6 +102,7 @@ contract DeployStableSuiteScript is Script, Deployers {
         poolManager.initialize(poolKey, 2 ** 96);
 
         _seedLiquidity(poolKey);
+        _fundIncentives(deployMocks);
 
         vm.stopBroadcast();
 
@@ -120,27 +123,26 @@ contract DeployStableSuiteScript is Script, Deployers {
 
         if (!key.currency0.isAddressZero()) {
             address token0 = Currency.unwrap(key.currency0);
-            MockStablecoin(token0).approve(address(permit2), type(uint256).max);
+            IERC20(token0).approve(address(permit2), type(uint256).max);
             permit2.approve(token0, address(positionManager), type(uint160).max, type(uint48).max);
         }
 
         if (!key.currency1.isAddressZero()) {
             address token1 = Currency.unwrap(key.currency1);
-            MockStablecoin(token1).approve(address(permit2), type(uint256).max);
+            IERC20(token1).approve(address(permit2), type(uint256).max);
             permit2.approve(token1, address(positionManager), type(uint160).max, type(uint48).max);
         }
 
-        positionManager.mint(
-            key,
-            tickLower,
-            tickUpper,
-            liquidity,
-            amount0Max + 1,
-            amount1Max + 1,
-            msg.sender,
-            block.timestamp + 120,
-            abi.encode(msg.sender)
+        bytes[] memory params = new bytes[](4);
+        params[0] = abi.encode(key, tickLower, tickUpper, liquidity, amount0Max + 1, amount1Max + 1, msg.sender, abi.encode(msg.sender));
+        params[1] = abi.encode(key.currency0, key.currency1);
+        params[2] = abi.encode(key.currency0, msg.sender);
+        params[3] = abi.encode(key.currency1, msg.sender);
+
+        bytes memory actions = abi.encodePacked(
+            uint8(Actions.MINT_POSITION), uint8(Actions.SETTLE_PAIR), uint8(Actions.SWEEP), uint8(Actions.SWEEP)
         );
+        positionManager.modifyLiquidities(abi.encode(actions, params), block.timestamp + 120);
     }
 
     function _defaultPolicy() internal pure returns (StableTypes.PolicyInput memory policy) {
@@ -164,8 +166,19 @@ contract DeployStableSuiteScript is Script, Deployers {
             StableTypes.RegimeConfig({feePips: 10_000, maxSwapAmount: 5e18, maxImpactTicks: 90, cooldownSeconds: 120});
 
         policy.incentives = StableTypes.IncentiveConfig({
-            warmupSeconds: 60, cooldownSeconds: 180, cooldownPenaltyBps: 2_000, emissionRate: 1e18
+            warmupSeconds: 15, cooldownSeconds: 180, cooldownPenaltyBps: 2_000, emissionRate: 1e18
         });
+    }
+
+    function _fundIncentives(bool deployMocks) internal {
+        uint256 defaultFunding = deployMocks ? 50_000e18 : 0;
+        uint256 initialFunding = vm.envOr("INITIAL_REWARD_FUND", defaultFunding);
+        if (initialFunding == 0) {
+            return;
+        }
+
+        rewardToken.approve(address(vault), initialFunding);
+        incentives.fundProgram(poolId, initialFunding);
     }
 
     function _sortedCurrencies(address tokenA, address tokenB)

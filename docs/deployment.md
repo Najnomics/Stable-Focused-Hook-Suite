@@ -1,23 +1,32 @@
 # Deployment
 
-## Bootstrap and Pinning
+## Dependency Pinning
 
 ```bash
 make bootstrap
 ```
 
-This script initializes submodules and pins Uniswap v4 periphery to commit `3779387e5d296f39df543d23524b050f89a62917`.
+This enforces Uniswap v4 periphery pin `3779387e5d296f39df543d23524b050f89a62917`.
 
-## Local Deployment
+## Environment
+
+Populate `.env` with Unichain Sepolia RPC + signer keys. Reactive variables are intentionally omitted because Reactive is not integrated.
+
+## Local
 
 ```bash
 make demo-local
 ```
 
-## Testnet Deployment
+## Unichain Sepolia
 
 ```bash
-RPC_URL=<rpc> PRIVATE_KEY=<pk> TOKEN0=<addr> TOKEN1=<addr> REWARD_TOKEN=<addr> make demo-testnet
+make demo-testnet
 ```
 
-Base Sepolia references are included in docs and script outputs.
+`demo-testnet` will:
+
+- deploy contracts if addresses are missing in `.env`
+- persist deployed addresses back into `.env`
+- run normal/depeg/incentives demo phases
+- print tx hashes and explorer URLs

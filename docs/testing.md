@@ -1,16 +1,19 @@
 # Testing
 
-Test suite includes:
+## Categories
 
-- Unit tests: controller, hook, incentives
-- Edge tests: band boundaries, cooldown boundaries, unauthorized paths
-- Fuzz tests: regime determinism, band ordering, reward-funding invariant
-- Integration test: normal lifecycle + depeg stress path
+- unit tests
+- edge/boundary tests
+- fuzz tests
+- integration lifecycle tests
+- economic correctness tests
 
-Run:
+## Commands
 
 ```bash
 make test
 make fuzz
 make coverage
 ```
+
+`make coverage` runs `scripts/check_coverage.sh`, which enforces `100%` lines/statements/branches/functions across `src/*` contracts.

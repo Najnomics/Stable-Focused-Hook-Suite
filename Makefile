@@ -15,7 +15,7 @@ fuzz:
 	forge test --match-path test/fuzz/* -vv
 
 coverage:
-	forge coverage
+	./scripts/check_coverage.sh
 
 lint:
 	forge fmt --check

@@ -1,3 +1,3 @@
 #!/usr/bin/env bash
 set -euo pipefail
-"$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/demo-mode.sh" incentives
+DEMO_ONLY_PHASE=incentives "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/demo-testnet.sh"
