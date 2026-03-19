@@ -17,3 +17,8 @@ node_modules/
 # Frontend build artifacts
 frontend/dist/
 frontend/node_modules/
+
+# Local-only directories/files (untracked by git)
+lib/
+frontend/
+spec.md

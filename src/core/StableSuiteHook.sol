@@ -106,18 +106,7 @@ contract StableSuiteHook is BaseHook {
             return BaseHook.beforeAddLiquidity.selector;
         }
 
-        PoolId poolId = key.toId();
-        StableTypes.Policy memory policy = _requirePolicy(poolId);
-        _syncIncentivePolicyIfNeeded(poolId, policy);
-
-        if (address(incentives) != address(0)) {
-            address account = _resolveLiquidityAccount(sender, hookData);
-            uint128 added = uint128(uint256(params.liquidityDelta));
-            incentives.onLiquidityAdded(poolId, account, added);
-            emit IncentivesWeightUpdated(poolId, account, params.liquidityDelta);
-        }
-
-        return BaseHook.beforeAddLiquidity.selector;
+        return _applyLiquidityAdded(sender, key, params, hookData);
     }
 
     function _beforeRemoveLiquidity(
@@ -130,6 +119,35 @@ contract StableSuiteHook is BaseHook {
             return BaseHook.beforeRemoveLiquidity.selector;
         }
 
+        return _applyLiquidityRemoved(sender, key, params, hookData);
+    }
+
+    function _applyLiquidityAdded(
+        address sender,
+        PoolKey calldata key,
+        ModifyLiquidityParams calldata params,
+        bytes calldata hookData
+    ) internal returns (bytes4 selector) {
+        selector = BaseHook.beforeAddLiquidity.selector;
+        PoolId poolId = key.toId();
+        StableTypes.Policy memory policy = _requirePolicy(poolId);
+        _syncIncentivePolicyIfNeeded(poolId, policy);
+
+        if (address(incentives) != address(0)) {
+            address account = _resolveLiquidityAccount(sender, hookData);
+            uint128 added = uint128(uint256(params.liquidityDelta));
+            incentives.onLiquidityAdded(poolId, account, added);
+            emit IncentivesWeightUpdated(poolId, account, params.liquidityDelta);
+        }
+    }
+
+    function _applyLiquidityRemoved(
+        address sender,
+        PoolKey calldata key,
+        ModifyLiquidityParams calldata params,
+        bytes calldata hookData
+    ) internal returns (bytes4 selector) {
+        selector = BaseHook.beforeRemoveLiquidity.selector;
         PoolId poolId = key.toId();
         StableTypes.Policy memory policy = _requirePolicy(poolId);
         _syncIncentivePolicyIfNeeded(poolId, policy);
@@ -140,8 +158,6 @@ contract StableSuiteHook is BaseHook {
             incentives.onLiquidityRemoved(poolId, account, removed);
             emit IncentivesWeightUpdated(poolId, account, params.liquidityDelta);
         }
-
-        return BaseHook.beforeRemoveLiquidity.selector;
     }
 
     function _beforeSwap(address, PoolKey calldata key, SwapParams calldata params, bytes calldata)
@@ -280,8 +296,7 @@ contract StableSuiteHook is BaseHook {
         state.smoothedVolatility = smoothed;
 
         if (timestamp > state.lastObservationTimestamp + window) {
-            state.smoothedVolatility = uint32(move);
-            smoothed = uint32(move);
+            smoothed = state.smoothedVolatility = uint32(move);
         }
 
         return smoothed;
@@ -289,10 +304,7 @@ contract StableSuiteHook is BaseHook {
 
     function _resolveLiquidityAccount(address sender, bytes calldata hookData) internal pure returns (address account) {
         if (hookData.length == 20) {
-            assembly ("memory-safe") {
-                account := shr(96, calldataload(hookData.offset))
-            }
-            return account;
+            return address(bytes20(hookData));
         }
 
         if (hookData.length >= 32) {

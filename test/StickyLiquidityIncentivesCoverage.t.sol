@@ -75,6 +75,21 @@ contract StickyLiquidityIncentivesCoverageTest is StableSuiteBase {
         incentives.onLiquidityRemoved(poolId, address(this), type(uint128).max);
     }
 
+    function testZeroDeltaLiquidityOperationsReturnEarly() public {
+        StickyLiquidityIncentives.UserState memory beforeState = incentives.getUserState(poolId, address(this));
+
+        vm.prank(address(hook));
+        incentives.onLiquidityAdded(poolId, address(this), 0);
+
+        vm.prank(address(hook));
+        incentives.onLiquidityRemoved(poolId, address(this), 0);
+
+        StickyLiquidityIncentives.UserState memory afterState = incentives.getUserState(poolId, address(this));
+        assertEq(afterState.activeWeight, beforeState.activeWeight);
+        assertEq(afterState.pendingWeight, beforeState.pendingWeight);
+        assertEq(afterState.accrued, beforeState.accrued);
+    }
+
     function testOnLiquidityRemovedHitsActiveWeightPath() public {
         uint256 tokenId = _mintLiquidity(address(this), 40e18);
 

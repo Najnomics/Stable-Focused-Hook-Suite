@@ -4,6 +4,7 @@ evm_version = "cancun"
 ffi = true
 fs_permissions = [{access = "read-write", path = ".forge-snapshots/"}]
 libs = ["lib"]
+no_match_coverage = "^(script/|src/helpers/|test/helpers/|test/utils/|lib/)"
 out = "out"
 solc_version = "0.8.30"
 src = "src"

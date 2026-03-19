@@ -5,6 +5,7 @@ import {PoolKey} from "@uniswap/v4-core/src/types/PoolKey.sol";
 import {PoolIdLibrary} from "@uniswap/v4-core/src/types/PoolId.sol";
 import {Currency} from "@uniswap/v4-core/src/types/Currency.sol";
 import {IHooks} from "@uniswap/v4-core/src/interfaces/IHooks.sol";
+import {Hooks} from "@uniswap/v4-core/src/libraries/Hooks.sol";
 import {LPFeeLibrary} from "@uniswap/v4-core/src/libraries/LPFeeLibrary.sol";
 import {TickMath} from "@uniswap/v4-core/src/libraries/TickMath.sol";
 import {SwapParams, ModifyLiquidityParams} from "@uniswap/v4-core/src/types/PoolOperation.sol";
@@ -13,6 +14,7 @@ import {BalanceDelta} from "@uniswap/v4-core/src/types/BalanceDelta.sol";
 import {StableSuiteBase} from "./utils/StableSuiteBase.sol";
 import {StableSuiteHook} from "../src/core/StableSuiteHook.sol";
 import {StickyLiquidityIncentives} from "../src/incentives/StickyLiquidityIncentives.sol";
+import {IStablePolicyController} from "../src/interfaces/IStablePolicyController.sol";
 
 contract StableSuiteHookCoverageTest is StableSuiteBase {
     using PoolIdLibrary for PoolKey;
@@ -54,6 +56,66 @@ contract StableSuiteHookCoverageTest is StableSuiteBase {
         assertEq(user.pendingWeight, 5);
     }
 
+    function testBeforeAddLiquidityNoIncentivesStillReturnsSelector() public {
+        address noIncentivesHookAddress = address(
+            uint160(
+                Hooks.BEFORE_ADD_LIQUIDITY_FLAG | Hooks.BEFORE_REMOVE_LIQUIDITY_FLAG | Hooks.BEFORE_SWAP_FLAG
+                    | Hooks.AFTER_SWAP_FLAG
+            ) ^ (0x6666 << 144)
+        );
+
+        bytes memory constructorArgs = abi.encode(poolManager, IStablePolicyController(controller), address(0));
+        deployCodeTo("StableSuiteHook.sol:StableSuiteHook", constructorArgs, noIncentivesHookAddress);
+        StableSuiteHook noIncentivesHook = StableSuiteHook(noIncentivesHookAddress);
+
+        PoolKey memory noIncentivesPoolKey = PoolKey({
+            currency0: currency0,
+            currency1: currency1,
+            fee: LPFeeLibrary.DYNAMIC_FEE_FLAG,
+            tickSpacing: 60,
+            hooks: IHooks(address(noIncentivesHook))
+        });
+
+        controller.configurePoolPolicy(noIncentivesPoolKey, defaultPolicyInput());
+
+        ModifyLiquidityParams memory params =
+            ModifyLiquidityParams({tickLower: 0, tickUpper: 1, liquidityDelta: 5, salt: bytes32(0)});
+
+        vm.prank(address(poolManager));
+        bytes4 selector = noIncentivesHook.beforeAddLiquidity(address(this), noIncentivesPoolKey, params, bytes(""));
+        assertEq(selector, noIncentivesHook.beforeAddLiquidity.selector);
+    }
+
+    function testBeforeRemoveLiquidityNoIncentivesStillReturnsSelector() public {
+        address noIncentivesHookAddress = address(
+            uint160(
+                Hooks.BEFORE_ADD_LIQUIDITY_FLAG | Hooks.BEFORE_REMOVE_LIQUIDITY_FLAG | Hooks.BEFORE_SWAP_FLAG
+                    | Hooks.AFTER_SWAP_FLAG
+            ) ^ (0x7777 << 144)
+        );
+
+        bytes memory constructorArgs = abi.encode(poolManager, IStablePolicyController(controller), address(0));
+        deployCodeTo("StableSuiteHook.sol:StableSuiteHook", constructorArgs, noIncentivesHookAddress);
+        StableSuiteHook noIncentivesHook = StableSuiteHook(noIncentivesHookAddress);
+
+        PoolKey memory noIncentivesPoolKey = PoolKey({
+            currency0: currency0,
+            currency1: currency1,
+            fee: LPFeeLibrary.DYNAMIC_FEE_FLAG,
+            tickSpacing: 60,
+            hooks: IHooks(address(noIncentivesHook))
+        });
+
+        controller.configurePoolPolicy(noIncentivesPoolKey, defaultPolicyInput());
+
+        ModifyLiquidityParams memory params =
+            ModifyLiquidityParams({tickLower: 0, tickUpper: 1, liquidityDelta: -int256(uint256(3)), salt: bytes32(0)});
+
+        vm.prank(address(poolManager));
+        bytes4 selector = noIncentivesHook.beforeRemoveLiquidity(address(this), noIncentivesPoolKey, params, bytes(""));
+        assertEq(selector, noIncentivesHook.beforeRemoveLiquidity.selector);
+    }
+
     function testBeforeAddLiquidityFallsBackToSenderWhenHookDataEmpty() public {
         address sender = address(0xCAFE);
 
@@ -75,6 +137,23 @@ contract StableSuiteHookCoverageTest is StableSuiteBase {
         vm.prank(address(poolManager));
         vm.expectRevert();
         hook.beforeRemoveLiquidity(address(this), poolKey, params, abi.encode(address(this)));
+    }
+
+    function testBeforeRemoveLiquiditySuccessfulPathReturnsSelector() public {
+        address account = address(0xC0FFEE);
+
+        ModifyLiquidityParams memory addParams =
+            ModifyLiquidityParams({tickLower: 0, tickUpper: 1, liquidityDelta: 9, salt: bytes32(0)});
+
+        vm.prank(address(poolManager));
+        hook.beforeAddLiquidity(account, poolKey, addParams, bytes(""));
+
+        ModifyLiquidityParams memory removeParams =
+            ModifyLiquidityParams({tickLower: 0, tickUpper: 1, liquidityDelta: -int256(uint256(9)), salt: bytes32(0)});
+
+        vm.prank(address(poolManager));
+        bytes4 selector = hook.beforeRemoveLiquidity(account, poolKey, removeParams, abi.encode(account));
+        assertEq(selector, hook.beforeRemoveLiquidity.selector);
     }
 
     function testBeforeSwapRevertsWhenPolicyMissing() public {
@@ -105,5 +184,21 @@ contract StableSuiteHookCoverageTest is StableSuiteBase {
         assertEq(smoothedVolatility, 0);
         assertGt(flowSkew, 0);
         assertLe(uint64(uint256(int256(flowSkew))), uint64(2_400_000));
+    }
+
+    function testBeforeSwapVolatilityWindowResetBranch() public {
+        SwapParams memory params =
+            SwapParams({zeroForOne: true, amountSpecified: 1e18, sqrtPriceLimitX96: TickMath.MIN_SQRT_PRICE + 1});
+
+        vm.prank(address(poolManager));
+        hook.beforeSwap(address(this), poolKey, params, bytes(""));
+
+        vm.warp(block.timestamp + 31);
+
+        vm.prank(address(poolManager));
+        hook.beforeSwap(address(this), poolKey, params, bytes(""));
+
+        (,,, uint32 smoothedVolatility,,,,,) = hook.runtime(poolId);
+        assertEq(smoothedVolatility, 0);
     }
 }

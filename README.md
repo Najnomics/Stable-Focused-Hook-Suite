@@ -211,9 +211,18 @@ Functions:  100.00%
 ```
 
 ```bash
-# Reproduce strict source-coverage gate
+# Reproduce strict source-coverage gate (accurate source mappings)
 ./scripts/check_coverage.sh
 ```
+
+```bash
+# Reproduce IR-minimum run (stack-too-deep fallback mode)
+forge coverage --exclude-tests --ir-minimum --no-match-coverage '^(script/|src/helpers/|test/helpers/|test/utils/|lib/)'
+```
+
+![Forge coverage --ir-minimum output](assets/forge-coverage-ir-minimum.png)
+
+> Note: Foundry warns that `--ir-minimum` can underreport line/statement source mappings.
 
 - Unit and edge tests: policy bounds, permissions, swap boundaries.
 - Fuzz tests: deterministic regime selection and valid swap behavior.

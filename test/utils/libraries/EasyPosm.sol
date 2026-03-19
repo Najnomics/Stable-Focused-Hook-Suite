@@ -26,6 +26,19 @@ library EasyPosm {
         bytes actions;
     }
 
+    struct MintCall {
+        IPositionManager posm;
+        PoolKey poolKey;
+        int24 tickLower;
+        int24 tickUpper;
+        uint256 liquidity;
+        uint256 amount0Max;
+        uint256 amount1Max;
+        address recipient;
+        uint256 deadline;
+        bytes hookData;
+    }
+
     /// @dev This function supports sending native tokens (ETH), the amount-to-pay is determined by amount0Max.
     ///      Any excess amount is NOT refunded since it is not encoding the SWEEP action
     function mint(
@@ -40,8 +53,24 @@ library EasyPosm {
         uint256 deadline,
         bytes memory hookData
     ) internal returns (uint256 tokenId, BalanceDelta delta) {
-        (Currency currency0, Currency currency1) = (poolKey.currency0, poolKey.currency1);
+        MintCall memory callData = MintCall({
+            posm: posm,
+            poolKey: poolKey,
+            tickLower: tickLower,
+            tickUpper: tickUpper,
+            liquidity: liquidity,
+            amount0Max: amount0Max,
+            amount1Max: amount1Max,
+            recipient: recipient,
+            deadline: deadline,
+            hookData: hookData
+        });
 
+        return _mint(callData);
+    }
+
+    function _mint(MintCall memory callData) private returns (uint256 tokenId, BalanceDelta delta) {
+        (Currency currency0, Currency currency1) = (callData.poolKey.currency0, callData.poolKey.currency1);
         MintData memory mintData = MintData({
             balance0Before: currency0.balanceOf(address(this)),
             balance1Before: currency1.balanceOf(address(this)),
@@ -53,16 +82,26 @@ library EasyPosm {
             uint8(Actions.MINT_POSITION), uint8(Actions.SETTLE_PAIR), uint8(Actions.SWEEP), uint8(Actions.SWEEP)
         );
 
-        mintData.params[0] =
-            abi.encode(poolKey, tickLower, tickUpper, liquidity, amount0Max, amount1Max, recipient, hookData);
+        mintData.params[0] = abi.encode(
+            callData.poolKey,
+            callData.tickLower,
+            callData.tickUpper,
+            callData.liquidity,
+            callData.amount0Max,
+            callData.amount1Max,
+            callData.recipient,
+            callData.hookData
+        );
         mintData.params[1] = abi.encode(currency0, currency1);
-        mintData.params[2] = abi.encode(currency0, recipient);
-        mintData.params[3] = abi.encode(currency1, recipient);
+        mintData.params[2] = abi.encode(currency0, callData.recipient);
+        mintData.params[3] = abi.encode(currency1, callData.recipient);
 
         // Mint Liquidity
-        tokenId = posm.nextTokenId();
-        uint256 valueToPass = currency0.isAddressZero() ? amount0Max : 0;
-        posm.modifyLiquidities{value: valueToPass}(abi.encode(mintData.actions, mintData.params), deadline);
+        tokenId = callData.posm.nextTokenId();
+        uint256 valueToPass = currency0.isAddressZero() ? callData.amount0Max : 0;
+        callData.posm.modifyLiquidities{value: valueToPass}(
+            abi.encode(mintData.actions, mintData.params), callData.deadline
+        );
 
         delta = toBalanceDelta(
             -(mintData.balance0Before - currency0.balanceOf(address(this))).toInt128(),
